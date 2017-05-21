@@ -1,10 +1,11 @@
 package asteroids;
 
-import asteroids.TwoD.TwoDLine;
-import asteroids.TwoD.TwoDPoint;
+import java.awt.Graphics;
 import java.util.Random;
 
 public final class Utils {
+    
+    public static final float EPSILON = 0.01F;
     
     private static final Random RANDOM = new Random();
     
@@ -14,25 +15,24 @@ public final class Utils {
         return (float) (min + (Math.random() * (max - min)));
     }
     
+    public static int getRandomIntegerInRange(int min, int max) {
+        return min + RANDOM.nextInt(max - min + 1);
+    }
+    
     public static float randomizeFloatNumberSign(float number) {
         return RANDOM.nextBoolean() ? -number : number;
     }
     
-    public static boolean doTheLinesIntersects(TwoDLine firstLine, TwoDLine secondLine) {
-        if (firstLine.getSlope() == secondLine.getSlope()) return false;
-        TwoDPoint intersection = firstLine.getIntersectionPointOnTheRay(secondLine);
-        float x = intersection.getX();
-        float y = intersection.getY();
-        return ((firstLine.getFirstPoint().getX() <= x && firstLine.getSecondPoint().getX() >= x && 
-                secondLine.getFirstPoint().getX() <= x && secondLine.getSecondPoint().getX() >= x) 
-                || 
-                (firstLine.getFirstPoint().getY() <= y && firstLine.getSecondPoint().getY() >= y && 
-                secondLine.getFirstPoint().getY() <= y && secondLine.getSecondPoint().getY() >= y));
+    public static boolean conditionWithProbability(int i) {
+        return RANDOM.nextInt() % i == 0;
     }
     
-    public static void main(String[] args) {
-        for (int i = 0; i < 1000; i++)
-        System.out.println(getRandomFloatInRange(0.1F, 1.5F));
+    public static boolean floatEquals(float f1, float f2) {
+        return Math.abs(f2 - f1) < EPSILON;
+    }
+    
+    public static void plotPixel(Graphics g, int x, int y) {
+        g.fillRect(x, y, 1, 1);
     }
     
 }

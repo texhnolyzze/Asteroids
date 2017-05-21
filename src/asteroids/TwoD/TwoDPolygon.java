@@ -1,90 +1,94 @@
 package asteroids.TwoD;
 
 import asteroids.Utils;
+import java.util.Arrays;
+import java.util.Iterator;
 
-public class TwoDPolygon {
+public class TwoDPolygon implements Iterable<TwoDSegment> {
 
-    private float _centerX, _centerY;
-    private final TwoDVector[] vertices;
+    private final TwoDVector _center;
+    private final TwoDSegment[] edges;
+    private final TwoDVector[] _vertices;
     private final float maxDistanceFromCenter;
     
-    public TwoDPolygon(int verticesCount, float[] xComponentsRelativeToCenterX, 
-            float[] yComponentsRelativeToCenterY, float centerX, float centerY) {
-        vertices = new TwoDVector[verticesCount];
+    public TwoDPolygon(TwoDVector[] vertices, TwoDVector center) {
+        _vertices = vertices;
         float max = 0;
-        for (int i = 0; i < vertices.length; i++) {
-            float nextX = xComponentsRelativeToCenterX[i];
-            float nextY = yComponentsRelativeToCenterY[i];
-            vertices[i] = new TwoDVector(nextX, nextY);
-            float perhapsMore = (float) Math.sqrt(nextX * nextX + nextY * nextY);
-            if (perhapsMore > max) max = perhapsMore;
+        int edgesCount = _vertices.length - 1;
+        edges = new TwoDSegment[edgesCount];
+        for (int i = 0; i < edgesCount; i++) {
+            float radius = _vertices[i].getLength();
+            max = Math.max(max, radius);
+            edges[i] = new TwoDSegment(_vertices[i], _vertices[i + 1]);
         }
-        _centerX = centerX;
-        _centerY = centerY;
+        max = Math.max(max, _vertices[edgesCount].getLength());
+        edges[edgesCount - 1] = new TwoDSegment(_vertices[0], _vertices[edgesCount]);
+        _center = center;
         maxDistanceFromCenter = max;
     }
     
     public int verticesCount() {
-        return vertices.length;
+        return edges.length + 1;
     }
     
-    public TwoDVector[] getVertices() {
-        return vertices;
+    public int edgesCount() {
+        return edges.length;
     }
     
     public float getCenterX() {
-        return _centerX;
+        return _center.getXComponent();
     }
     
     public float getCenterY() {
-        return _centerY;
+        return _center.getYComponent();
+    }
+    
+    public TwoDVector[] getVertices() {
+        return _vertices;
+    }
+    
+    public TwoDVector getMidpointOf(int edgeNumber) {
+        return edges[edgeNumber].getMidpoint();
     }
     
     public void rotate(float radianAngle) {
-        for (TwoDVector vertex : vertices) vertex.rotate(radianAngle);
+        for (TwoDSegment edge : edges) edge.getFirstPoint().rotate(radianAngle);
     }
     
     public void transfer(float dx, float dy) {
-        _centerX += dx;
-        _centerY += dy;
+        _center.transfer(dx, dy);
     }
     
-    public boolean isThePointInside(float pointX, float pointY) {
-        TwoDPoint rawStartPoint = new TwoDPoint(pointX, pointY);
-        TwoDPoint rawEndPoint = new TwoDPoint(pointX + 2 * maxDistanceFromCenter,
-                pointY + 2 * maxDistanceFromCenter);
-        TwoDLine raw = new TwoDLine(rawStartPoint, rawEndPoint);
+    public boolean isThePointInside(TwoDVector pointRadiusVector) {
+        TwoDVector relative = pointRadiusVector.getRelativeTo(_center);
+        if (relative.getLength() > maxDistanceFromCenter) return false;
+        TwoDVector rawStartPoint = new TwoDVector(relative.getXComponent(), relative.getYComponent());
+        TwoDVector rawEndPoint = new TwoDVector(2 * maxDistanceFromCenter,
+                2 * maxDistanceFromCenter);
+        TwoDSegment raw = new TwoDSegment(rawStartPoint, rawEndPoint);
         int counter = 0;
-        for (int i = 0; i < vertices.length - 1; i++) {
-            TwoDPoint firstVertex = getVertexAsTwoDPoint(i);
-            TwoDPoint secondVertex = getVertexAsTwoDPoint(i + 1);
-            TwoDLine edge = new TwoDLine(firstVertex, secondVertex);
-            if (Utils.doTheLinesIntersects(raw, edge)) counter++;
-        }
-        TwoDPoint startVertex = getVertexAsTwoDPoint(0);
-        TwoDPoint endVertex = getVertexAsTwoDPoint(vertices.length - 1);
-        TwoDLine closingEdge = new TwoDLine(startVertex, endVertex);
-        if (Utils.doTheLinesIntersects(raw, closingEdge)) counter++;
+        for (TwoDSegment edge : edges) if (raw.doesIntersectWith(edge)) counter++;
         return counter % 2 != 0;
     }
-    
-    public TwoDPoint getVertexAsTwoDPoint(int vertex) {
-        return new TwoDPoint(_centerX + vertices[vertex].getXComponent(), 
-                _centerY + vertices[vertex].getYComponent());
+
+    public static TwoDPolygon randomPolygone(int verticesCount, TwoDVector center, 
+            float minDistanceFromCenter, float maxDistanceFromCenter) {
+        TwoDVector[] vertices = new TwoDVector[verticesCount];
+        for (int i = 0; i < verticesCount; i++) {
+            float x = Utils.randomizeFloatNumberSign(
+                    Utils.getRandomFloatInRange(minDistanceFromCenter, maxDistanceFromCenter));
+            float y = Utils.randomizeFloatNumberSign(
+                    Utils.getRandomFloatInRange(minDistanceFromCenter, maxDistanceFromCenter));
+            TwoDVector next = new TwoDVector(x, y);
+            vertices[i] = next;
+        }
+        TwoDPolygon polygon = new TwoDPolygon(vertices, center); 
+        return polygon;
     }
 
-    public static TwoDPolygon randomPolygone(int verticesCount, float centerX, float centerY, 
-            float minDistanceFromCenter, float maxDistanceFromCenter) {
-        float[] xComponents = new float[verticesCount];
-        float[] yComponents = new float[verticesCount];
-        for (int i = 0; i < verticesCount; i++) {
-            xComponents[i] = Utils.randomizeFloatNumberSign(
-                    Utils.getRandomFloatInRange(minDistanceFromCenter, maxDistanceFromCenter));
-            yComponents[i] = Utils.randomizeFloatNumberSign(
-                    Utils.getRandomFloatInRange(minDistanceFromCenter, maxDistanceFromCenter));
-        }
-        TwoDPolygon polygon = new TwoDPolygon(verticesCount, xComponents, yComponents, centerX, centerY); 
-        return polygon;
+    @Override
+    public Iterator<TwoDSegment> iterator() {
+        return Arrays.asList(edges).iterator();
     }
     
 }
