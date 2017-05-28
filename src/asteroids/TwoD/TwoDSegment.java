@@ -30,6 +30,10 @@ public class TwoDSegment {
         return k;
     }
     
+    public float getLength() {
+        return (float) Math.sqrt(_firstPoint.squareDistanceBetween(_secondPoint));
+    }
+    
     public TwoDVector getMidpoint() {
         return new TwoDVector(
                 (_firstPoint.getXComponent() + _secondPoint.getXComponent()) / 2,
@@ -42,6 +46,61 @@ public class TwoDSegment {
                 _firstPoint.copy(), 
                 _secondPoint.copy()
         );
+    }
+    
+    public TwoDSegment getAbsolute(TwoDVector respectToWhich) {
+        return new TwoDSegment(
+                _firstPoint.getAbsolute(respectToWhich), 
+                _secondPoint.getAbsolute(respectToWhich)
+        );
+    }
+    
+    public TwoDSegment getRelativeTo(TwoDVector other) {
+        return new TwoDSegment(
+                _firstPoint.getRelativeTo(other),
+                _secondPoint.getRelativeTo(other)
+        );
+    }
+    
+    public TwoDVector getDirectionFrom(TwoDVector from) {
+        if (from.equals(_firstPoint)) 
+            return _secondPoint.getRelativeTo(_firstPoint).getNormalize();
+        else return _firstPoint.getRelativeTo(_secondPoint).getNormalize();
+    }
+    
+    public TwoDSegment[] breakIntoEqualSegments(int parts) {
+        TwoDSegment[] segments = new TwoDSegment[parts];
+        float partitionStep = getLength() / parts;
+        TwoDVector partitionDirection = _secondPoint.getRelativeTo(_firstPoint).getNormalize();
+        for (int i = 1; i <= parts; i++) {
+            TwoDVector temp = partitionDirection.copy();
+            temp.scale(partitionStep);
+            segments[i - 1] = new TwoDSegment(
+                    new TwoDVector(
+                            _firstPoint.getXComponent() + (i - 1) * temp.getXComponent(),
+                            _firstPoint.getYComponent() + (i - 1) * temp.getYComponent()
+                    ),
+                    new TwoDVector(
+                            _firstPoint.getXComponent() + i * temp.getXComponent(),
+                            _firstPoint.getYComponent() + i * temp.getYComponent()
+                    )
+            );
+        }
+        return segments;
+    }
+    
+    public TwoDVector[] getAllPoints() {
+        TwoDVector[] points = new TwoDVector[(int) getLength()];
+        TwoDVector partitionDirection = _secondPoint.getRelativeTo(_firstPoint).getNormalize();
+        for (int i = 0; i < points.length; i++) {
+            TwoDVector temp = partitionDirection.copy();
+            temp.scale(i);
+            points[i] = new TwoDVector(
+                    _firstPoint.getXComponent() + temp.getXComponent(),
+                    _firstPoint.getYComponent() + temp.getYComponent()
+            );
+        }
+        return points;
     }
     
     public TwoDVector getIntersectionPointOnTheRaysWith(TwoDSegment other) {
@@ -72,11 +131,18 @@ public class TwoDSegment {
         return (x >= x1 && x <= x2) || (x <= x1 && x >= x2);
     }
     
-    public boolean doesIntersectWith(TwoDSegment other) {
-        if (Utils.floatEquals(k, other.k)) return false;
+    public TwoDVector intersectWith(TwoDSegment other) {
+        if (Utils.floatEquals(k, other.k)) return null;
         TwoDVector intersection = getIntersectionPointOnTheRaysWith(other);
-        return isThePointBelongingToTheLineLyingOnTheSegment(intersection) 
-                && other.isThePointBelongingToTheLineLyingOnTheSegment(intersection);
+        if (isThePointBelongingToTheLineLyingOnTheSegment(intersection) && 
+                other.isThePointBelongingToTheLineLyingOnTheSegment(intersection)) 
+            return intersection;
+        return null;
+    }
+
+    @Override
+    public String toString() {
+        return "{" + _firstPoint + "; " + _secondPoint + '}';
     }
     
 }

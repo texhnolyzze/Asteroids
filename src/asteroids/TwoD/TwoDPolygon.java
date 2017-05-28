@@ -1,6 +1,5 @@
 package asteroids.TwoD;
 
-import asteroids.Utils;
 import java.util.Arrays;
 import java.util.Iterator;
 
@@ -9,22 +8,25 @@ public class TwoDPolygon implements Iterable<TwoDSegment> {
     private final TwoDVector _center;
     private final TwoDSegment[] edges;
     private final TwoDVector[] _vertices;
-    private final float maxDistanceFromCenter;
+    private float maxSquareDistanceFromCenter;
     
     public TwoDPolygon(TwoDVector[] vertices, TwoDVector center) {
         _vertices = vertices;
+        _center = center;
+        edges = new TwoDSegment[_vertices.length];
+        init();
+    }
+    
+    private void init() {
         float max = 0;
-        int edgesCount = _vertices.length - 1;
-        edges = new TwoDSegment[edgesCount];
-        for (int i = 0; i < edgesCount; i++) {
-            float radius = _vertices[i].getLength();
-            max = Math.max(max, radius);
+        for (int i = 0; i < edges.length - 1; i++) {
+            float squareRadius = _vertices[i].getSquareLength();
+            max = Math.max(max, squareRadius);
             edges[i] = new TwoDSegment(_vertices[i], _vertices[i + 1]);
         }
-        max = Math.max(max, _vertices[edgesCount].getLength());
-        edges[edgesCount - 1] = new TwoDSegment(_vertices[0], _vertices[edgesCount]);
-        _center = center;
-        maxDistanceFromCenter = max;
+        max = Math.max(max, _vertices[edges.length - 1].getSquareLength());
+        edges[edges.length - 1] = new TwoDSegment(_vertices[0], _vertices[edges.length - 1]);
+        maxSquareDistanceFromCenter = max;
     }
     
     public int verticesCount() {
@@ -47,12 +49,16 @@ public class TwoDPolygon implements Iterable<TwoDSegment> {
         return _vertices;
     }
     
+    public float getMaxSquareDistanceFromCenter() {
+        return maxSquareDistanceFromCenter;
+    }
+    
     public TwoDVector getMidpointOf(int edgeNumber) {
         return edges[edgeNumber].getMidpoint();
     }
     
     public void rotate(float radianAngle) {
-        for (TwoDSegment edge : edges) edge.getFirstPoint().rotate(radianAngle);
+        for (TwoDVector v : _vertices) v.rotate(radianAngle);
     }
     
     public void transfer(float dx, float dy) {
@@ -61,29 +67,25 @@ public class TwoDPolygon implements Iterable<TwoDSegment> {
     
     public boolean isThePointInside(TwoDVector pointRadiusVector) {
         TwoDVector relative = pointRadiusVector.getRelativeTo(_center);
-        if (relative.getLength() > maxDistanceFromCenter) return false;
+        if (relative.getSquareLength() > maxSquareDistanceFromCenter) return false;
         TwoDVector rawStartPoint = new TwoDVector(relative.getXComponent(), relative.getYComponent());
-        TwoDVector rawEndPoint = new TwoDVector(2 * maxDistanceFromCenter,
-                2 * maxDistanceFromCenter);
+        TwoDVector rawEndPoint = TwoDVector.getRandomUnitVector();
+        rawEndPoint.scale(maxSquareDistanceFromCenter);
         TwoDSegment raw = new TwoDSegment(rawStartPoint, rawEndPoint);
         int counter = 0;
-        for (TwoDSegment edge : edges) if (raw.doesIntersectWith(edge)) counter++;
+        for (TwoDSegment edge : this) if (raw.intersectWith(edge) != null) counter++;
         return counter % 2 != 0;
     }
-
-    public static TwoDPolygon randomPolygone(int verticesCount, TwoDVector center, 
-            float minDistanceFromCenter, float maxDistanceFromCenter) {
-        TwoDVector[] vertices = new TwoDVector[verticesCount];
-        for (int i = 0; i < verticesCount; i++) {
-            float x = Utils.randomizeFloatNumberSign(
-                    Utils.getRandomFloatInRange(minDistanceFromCenter, maxDistanceFromCenter));
-            float y = Utils.randomizeFloatNumberSign(
-                    Utils.getRandomFloatInRange(minDistanceFromCenter, maxDistanceFromCenter));
-            TwoDVector next = new TwoDVector(x, y);
-            vertices[i] = next;
+    
+    public TwoDVector intersectWith(TwoDSegment segment) {
+        TwoDSegment relative = segment.getRelativeTo(_center);
+        for (TwoDSegment s : this) {
+            TwoDVector intersection = s.intersectWith(relative);
+            if (intersection != null) {
+                return intersection.getAbsolute(_center);
+            }
         }
-        TwoDPolygon polygon = new TwoDPolygon(vertices, center); 
-        return polygon;
+        return null;
     }
 
     @Override

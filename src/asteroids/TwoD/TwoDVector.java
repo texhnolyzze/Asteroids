@@ -20,12 +20,12 @@ public class TwoDVector {
         return yComponent;
     }
     
-    public int getXAsInteger() {
-        return (int) xComponent;
+    public void setX(float x) {
+        xComponent = x;
     }
     
-    public int getYAsInteger() {
-        return (int) yComponent;
+    public void setY(float y) {
+        yComponent = y;
     }
     
     public void scale(float scale) {
@@ -41,12 +41,17 @@ public class TwoDVector {
         yComponent *= yScale;
     }
     
+    public float squareDistanceBetween(TwoDVector other) {
+        return (float) 
+                (Math.pow(other.xComponent - xComponent, 2) + Math.pow(other.yComponent - yComponent, 2));
+    }
+    
     public TwoDVector getReversed() {
         return new TwoDVector(-xComponent, -yComponent);
     }
     
     public boolean isNullVector() {
-        return Utils.floatEquals(xComponent, 0F) && Utils.floatEquals(yComponent, 0F);
+        return Utils.floatEquals(getSquareLength(), 0F);
     }
     
     public TwoDVector getRelativeTo(TwoDVector other) {
@@ -71,25 +76,39 @@ public class TwoDVector {
         return (float) Math.sqrt(xComponent * xComponent + yComponent * yComponent);
     }
     
+    public float getSquareLength() {
+        return xComponent * xComponent + yComponent * yComponent;
+    }
+    
     public void transfer(float dx, float dy) {
         xComponent += dx;
         yComponent += dy;
     }
     
-    public void transferWithPossibleClosure(float dx, float dy, int xBound, int yBound) {
+    public boolean transferWithPossibleClosure(float dx, float dy, int xBound, int yBound) {
+        boolean xClosure = true, yClosure = true;
         float xTransfer = xComponent + dx;
         float yTransfer = yComponent + dy;
         if (xTransfer < 0) xComponent += (xBound - Math.abs(dx));
         else if (xTransfer > xBound) xComponent -= (xBound - Math.abs(dx));
-        else xComponent = xTransfer;
+        else {
+            xComponent = xTransfer;
+            xClosure = false;
+        }
         if (yTransfer < 0) yComponent += (yBound - Math.abs(dy));
         else if (yTransfer > yBound) yComponent -= (yBound - Math.abs(dy));
-        else yComponent = yTransfer;
+        else {
+            yComponent = yTransfer;
+            yClosure = false;
+        }
+        return xClosure || yClosure;
     }
     
     public void rotate(float radiansAngle) {
-        xComponent = (float) ((xComponent * Math.cos(radiansAngle)) - (yComponent * Math.sin(radiansAngle)));
-        yComponent = (float) ((xComponent * Math.sin(radiansAngle)) + (yComponent * Math.cos(radiansAngle)));
+        float newX = (float) (xComponent * Math.cos(radiansAngle) - yComponent * Math.sin(radiansAngle));
+        float newY = (float) (xComponent * Math.sin(radiansAngle) + yComponent * Math.cos(radiansAngle));
+        xComponent = newX;
+        yComponent = newY;
     }
 
     public TwoDVector copy() {
@@ -98,13 +117,51 @@ public class TwoDVector {
 
     @Override
     public String toString() {
-        return "TwoDVector{" + "xComponent=" + xComponent + ", yComponent=" + yComponent + '}';
+        return "(" + xComponent + "; " + yComponent + ')';
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null) return false;
+        if (getClass() != obj.getClass()) return false;
+        final TwoDVector other = (TwoDVector) obj;
+        if (!Utils.floatEquals(xComponent, other.xComponent)) return false;
+        return Utils.floatEquals(yComponent, other.yComponent);
     }
     
     public static TwoDVector getRandomUnitVector() {
-        float x = Utils.getRandomFloatInRange(0, 1);
+        float x = (float) Math.random();
         float y = 1F - x;
-        return new TwoDVector(Utils.randomizeFloatNumberSign(x), Utils.randomizeFloatNumberSign(y));
+        return new TwoDVector(
+                Utils.randomizeFloatNumberSign(x), 
+                Utils.randomizeFloatNumberSign(y)
+        );
+    }
+    
+    public static TwoDVector getRandomInBounds(float rightBound, float bottomBound) {
+        return new TwoDVector(
+                Utils.getRandomFloatInRange(0, rightBound), 
+                Utils.getRandomFloatInRange(0, bottomBound)
+        );
+    }
+    
+    public static TwoDVector getRandomInBoundsAwayFromCenter(float minHowMuchFrom, 
+            float rightBound, float bottomBound) {
+        TwoDVector unit = getRandomUnitVector();
+        unit.scale(minHowMuchFrom);
+        float x = Utils.randomizeFloatNumberSign(1);
+        float y = Utils.randomizeFloatNumberSign(1);
+        return new TwoDVector(
+                Utils.getRandomFloatInRange(rightBound / 2 + (x * unit.xComponent), x == -1 ? 0 : rightBound),
+                Utils.getRandomFloatInRange(bottomBound / 2 + (y * unit.yComponent), y == - 1 ? 0 : bottomBound)
+        );
     }
     
 }

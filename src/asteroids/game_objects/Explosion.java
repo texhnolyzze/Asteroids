@@ -2,17 +2,18 @@ package asteroids.game_objects;
 
 import asteroids.TwoD.TwoDVector;
 import asteroids.Utils;
-import java.awt.Graphics;
+import asteroids.sound.SoundEffect;
+import javafx.scene.canvas.GraphicsContext;
 
-public class Explosion extends MoveableObject {
+public class Explosion extends GameObjectImpl implements LimitedLifeTime {
 
     private static final float EXPLOSION_CENTER_VELOCITY = 4F;
     
-    private static final int MIN_PARTICLES_COUNT = 15;
-    private static final int MAX_PARTICLES_COUNT = 25;
+    private static final int MIN_PARTICLES_COUNT = 10;
+    private static final int MAX_PARTICLES_COUNT = 20;
     
-    private static final float MIN_PARTICLE_VELOCITY = 7F;
-    private static final float MAX_PARTICLE_VELOCITY = 14F;
+    private static final float MIN_PARTICLE_VELOCITY = 2F;
+    private static final float MAX_PARTICLE_VELOCITY = 5F;
     
     private static final int EXPLOSION_LIFE_TIME = 50;
     
@@ -29,47 +30,40 @@ public class Explosion extends MoveableObject {
             particleVelocity.scale(
                     Utils.getRandomFloatInRange(MIN_PARTICLE_VELOCITY, MAX_PARTICLE_VELOCITY)
             );
-            particles[i] = new Particle(new TwoDVector(0, 0), particleVelocity);
+            particles[i] = new Particle(center.copy(), particleVelocity);
         }
     }
 
     @Override
     public void move(int rightBound, int bottomBound) {
-        super.move(rightBound, bottomBound); 
         for (Particle p : particles) p.move(rightBound, bottomBound);
+        lifeTime++;
     }
     
     public static Explosion explose(TwoDVector explosionCenter) {
-        TwoDVector velocity = TwoDVector.getRandomUnitVector();
-        velocity.scale(EXPLOSION_CENTER_VELOCITY);
-        return new Explosion(explosionCenter, velocity);
-    } 
-    
-    public static Explosion explose(TwoDVector explosionCenter, TwoDVector unitDirection) {
-        unitDirection.scale(EXPLOSION_CENTER_VELOCITY);
-        return new Explosion(explosionCenter, unitDirection);
-    } 
+        SoundEffect.EXPLOSION.playSound();
+        return new Explosion(explosionCenter, null);
+    }
 
     @Override
-    public void draw(Graphics g) {
-        g.translate(getCenter().getXAsInteger(), getCenter().getYAsInteger());
+    public void draw(GraphicsContext g) {
         for (Particle p : particles) p.draw(g);
-        g.translate(0, 0);
     }
     
+    @Override
     public boolean stillExists() {
         return lifeTime <= EXPLOSION_LIFE_TIME;
     }
     
-    static class Particle extends MoveableObject {
+    static class Particle extends GameObjectImpl {
         
         public Particle(TwoDVector center, TwoDVector velocity) {
             super(center, velocity);
         }
 
         @Override
-        public void draw(Graphics g) {
-            Utils.plotPixel(g, getCenter().getXAsInteger(), getCenter().getYAsInteger());
+        public void draw(GraphicsContext g) {
+            g.fillRect(getCenter().getXComponent(), getCenter().getYComponent(), 4, 4);
         }
         
     }

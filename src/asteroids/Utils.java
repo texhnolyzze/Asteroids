@@ -1,11 +1,10 @@
 package asteroids;
 
-import java.awt.Graphics;
 import java.util.Random;
 
 public final class Utils {
     
-    public static final float EPSILON = 0.01F;
+    public static final float EPSILON = 0.001F;
     
     private static final Random RANDOM = new Random();
     
@@ -29,10 +28,6 @@ public final class Utils {
     
     public static boolean floatEquals(float f1, float f2) {
         return Math.abs(f2 - f1) < EPSILON;
-    }
-    
-    public static void plotPixel(Graphics g, int x, int y) {
-        g.fillRect(x, y, 1, 1);
     }
     
 }

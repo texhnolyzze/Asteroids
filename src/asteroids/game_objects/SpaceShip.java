@@ -1,108 +1,113 @@
 package asteroids.game_objects;
 
+import asteroids.BinaryOscillator;
 import asteroids.TwoD.TwoDPolygon;
 import asteroids.TwoD.TwoDSegment;
 import asteroids.TwoD.TwoDVector;
-import java.awt.Color;
-import java.awt.Graphics;
-import java.util.Arrays;
+import asteroids.sound.SoundEffect;
 import java.util.Iterator;
+import javafx.scene.canvas.GraphicsContext;
 
 public class SpaceShip extends AreaGameObject {
-
+    
     public static final int CLOCKWISE_ROTATION = 0;
     public static final int COUNTER_CLOCKWISE_ROTATION = 1;
     
     private static final TwoDVector[] SHIP_RELATIVE_TO_CENTER = {
-        new TwoDVector(0F, 6F),  //0           // /\ 0  
-        new TwoDVector(5F, -4F), //1         // / 2 \
-        new TwoDVector(0F, -2F), //2       // / ╱╲ \
-        new TwoDVector(-5F, -4F),//3     // /╱     ╲\ 
+        new TwoDVector(0F, -12F),  //0           // /\ 0  
+        new TwoDVector(10F, 8F), //1         // / 2 \
+        new TwoDVector(0F, 4F), //2       // / ╱╲ \
+        new TwoDVector(-10F, 8F),//3     // /╱     ╲\ 
     };                                 //   3         1
 
 
-    private static final float REACTIVE_FORCE = 1.3F;
-    private static final float FRICTION_FORCE = 1.1F;
+    private static final float REACTIVE_FORCE = 0.09F;
+    private static final float FRICTION_FORCE = 0.01F;
+    private static final float MAX_SQUARE_VELOCITY = 64F;
     
-    private static final int DRAW_GASES_SCALE = 6;
+    private static final int DRAW_GASES_SCALE = 12;
     
-    private static final int INVULNERABLE_TIME = 20;
+    private static final int INVULNERABLE_TIME = 200;
     
     private static final float[] ROTATION_ANGLES = {
-        0.174533F, 
-        -0.174533F
+        0.139626F, 
+        -0.139626F
     };
     
-    private final TwoDVector accelerationVector;
-    private final TwoDVector reactiveForce;
-    private final TwoDVector frictionForce;
+    private final BinaryOscillator invulnerableFlickering;
+    private final BinaryOscillator reactiveGasesFlickering;
+    private final BinaryOscillator delayBeforeRevival;
+    
+    private final TwoDVector occurrenceVector;
+    
     
     private boolean engineTurnOn;
-    private boolean frictionTurnOn;
-    
-    private boolean gasesDrawedOnThePreviousTick;
     
     private int lifeTime;
+    
+    private boolean isDead;
+    private SpaceShipDeath death;
     
     private int rotationDirection;
     
     private SpaceShip(TwoDVector center, TwoDVector velocity, TwoDPolygon poly) {
         super(center, velocity, poly);
-        accelerationVector = new TwoDVector(0, 0);        // relative 
-        reactiveForce = new TwoDVector(0, 0);           //   to
-        frictionForce = new TwoDVector(0, 0);         //     center
+        occurrenceVector = center.copy();
+
         rotationDirection = -1;
+        invulnerableFlickering = new BinaryOscillator(10, false);
+        reactiveGasesFlickering = new BinaryOscillator(2, false);
+        delayBeforeRevival = new BinaryOscillator(200, true);
     }
 
     @Override
     public Explosion collisionWith(AreaGameObject other) {
-        if (isInvulnerable()) return null;
+        if (isInvulnerable() || isDead) return null;
         return super.collisionWith(other); 
     }
 
     @Override
     public Explosion collisionWith(Bullet bullet) {
-        if (isInvulnerable()) return null;
+        if (isInvulnerable() || isDead || bullet.isPlayerShot()) return null;
         return super.collisionWith(bullet); 
+    }
+    
+    public boolean isDead() {
+        return isDead;
     }
 
     @Override
-    public void draw(Graphics g) {
-        Color srcColor = g.getColor();
-        if (isInvulnerable()) {
-            draw0(g);
-            g.setColor(Color.BLACK);
-            draw0(g);
-            g.setColor(srcColor);
-            draw0(g);
-        } else draw0(g);
+    public void draw(GraphicsContext g) {
+        if (isDead) death.draw(g);
+        else if (isInvulnerable()) {
+            if (invulnerableFlickering.needToPerformAction()) draw0(g);
+        }
+        else draw0(g);
     }
     
-    private void draw0(Graphics g) {
+    
+    private void draw0(GraphicsContext g) {
         super.draw(g); 
-        if (engineTurnOn) { 
-            g.translate(getCenter().getXAsInteger(), getCenter().getYAsInteger());
+        if (engineTurnOn && reactiveGasesFlickering.needToPerformAction()) { 
+            g.translate(getCenter().getXComponent(), getCenter().getYComponent());
             drawGases(g);
-            g.translate(0, 0);
+            g.translate(-getCenter().getXComponent(), -getCenter().getYComponent());
         }
     }
     
-    private void drawGases(Graphics g) {
-        if (!gasesDrawedOnThePreviousTick) {
-            TwoDVector backward = getBackwardDirection();
-            backward.scale(DRAW_GASES_SCALE);
-            drawGases(g, backward, 1);
-            drawGases(g, backward, 2);
-            gasesDrawedOnThePreviousTick = true;
-        } else gasesDrawedOnThePreviousTick = false;
+    private void drawGases(GraphicsContext g) {
+        TwoDVector backward = getBackwardDirection();
+        backward.scale(DRAW_GASES_SCALE);
+        drawGases(g, backward, 1);
+        drawGases(g, backward, 2);
     }
     
-    private void drawGases(Graphics g, TwoDVector backward, int fromEdge) {
-        g.drawLine(
-                polygon.getMidpointOf(fromEdge).getXAsInteger(), 
-                polygon.getMidpointOf(fromEdge).getYAsInteger(), 
-                backward.getXAsInteger(), 
-                backward.getYAsInteger()
+    private void drawGases(GraphicsContext g, TwoDVector backward, int fromEdge) {
+        g.strokeLine(
+                polygon.getMidpointOf(fromEdge).getXComponent(), 
+                polygon.getMidpointOf(fromEdge).getYComponent(), 
+                backward.getXComponent(), 
+                backward.getYComponent()
         );
     }
     
@@ -111,17 +116,26 @@ public class SpaceShip extends AreaGameObject {
     }
     
     public Bullet shoot() {
-        return Bullet.shoot(polygon.getVertices()[0].getAbsolute(getCenter()), getForwardDirection());
+        if (isDead) return null;
+        return Bullet.shoot(
+                polygon.getVertices()[0].getAbsolute(getCenter()), 
+                getForwardDirection(), 
+                true
+        );
     }
 
     @Override
     public void move(int rightBound, int bottomBound) {
-        super.move(rightBound, bottomBound);
-        velocityChange();
-        accelerationChange();
-        if (frictionTurnOn && getVelocityVector().isNullVector()) turnOffFriction();
-        else if (!frictionTurnOn) turnOnFriction();
-        if (rotationDirection != -1) rotate(ROTATION_ANGLES[rotationDirection]);
+        if (isDead) {
+            if (delayBeforeRevival.needToPerformAction()) reset();
+            else death.move(rightBound, bottomBound);
+        } else {
+            if (engineTurnOn || isMoving()) updateVelocity();
+            super.move(rightBound, bottomBound);
+            if (rotationDirection != -1) rotate(ROTATION_ANGLES[rotationDirection]);
+            
+        }
+        lifeTime++;
     }
     
     public void rotate(int direction) {
@@ -134,8 +148,6 @@ public class SpaceShip extends AreaGameObject {
     
     private void rotate(float radiansAngle) {
         polygon.rotate(radiansAngle);
-        if (engineTurnOn) reactiveForce.rotate(radiansAngle);
-        if (frictionTurnOn) frictionForce.rotate(radiansAngle);
     }
 
     private TwoDVector getForwardDirection() {
@@ -146,68 +158,76 @@ public class SpaceShip extends AreaGameObject {
         return getForwardDirection().getReversed();
     }
     
+    private void updateVelocity() {
+        if (getVelocityVector().getSquareLength() > MAX_SQUARE_VELOCITY)
+            getVelocityVector().scale(MAX_SQUARE_VELOCITY / getVelocityVector().getSquareLength());
+        else if (getVelocityVector().isNullVector() && !isMoving()) {
+            getVelocityVector().scale(0F);
+        }
+        if (engineTurnOn) {
+            TwoDVector forward = getForwardDirection();
+            forward.scale(REACTIVE_FORCE);
+            getVelocityVector().transfer(
+                    forward.getXComponent(), 
+                    forward.getYComponent()
+            );
+        }
+        if (isMoving()) {
+            TwoDVector backward = getVelocityVector().getReversed().getNormalize();
+            backward.scale(FRICTION_FORCE);
+            getVelocityVector().transfer(
+                    backward.getXComponent(), 
+                    backward.getYComponent()
+            );
+        }
+    }
+    
+    private boolean isMoving() {
+        return getVelocityVector().getSquareLength() > 0.00001F;
+    }
+    
     public void turnOnEngine() {
-        TwoDVector unit = getForwardDirection();
-        unit.scale(REACTIVE_FORCE);
-        reactiveForce.transfer(
-                unit.getXComponent(), unit.getYComponent()
-        );
         engineTurnOn = true;
+        SoundEffect.JET_ENGINE.playLooply();
     }
     
     public void turnOffEngine() {
-        reactiveForce.scale(0F);
         engineTurnOn = false;
-    }
-    
-    private void turnOnFriction() {
-        TwoDVector unit = getBackwardDirection();
-        unit.scale(FRICTION_FORCE);
-        frictionForce.transfer(
-                unit.getXComponent(), unit.getYComponent()
-        );
-        frictionTurnOn = true;
-    }
-    
-    private void turnOffFriction() {
-        frictionForce.scale(0F);
-        frictionTurnOn = false;
-    }
-    
-    private void velocityChange() {
-        getVelocityVector().transfer(
-                accelerationVector.getXComponent(),
-                accelerationVector.getYComponent()
-        );
-    }
-    
-    private void accelerationChange() {
-        if (engineTurnOn) accelerationVector.transfer(
-                reactiveForce.getXComponent(), reactiveForce.getYComponent()
-        );
-        if (frictionTurnOn) accelerationVector.transfer(
-                frictionForce.getXComponent(), frictionForce.getYComponent()
-        );
+        reactiveGasesFlickering.reset();
+        SoundEffect.JET_ENGINE.stop();
     }
     
     public static SpaceShip createShip(TwoDVector center) {
+        TwoDVector[] copy = new TwoDVector[SHIP_RELATIVE_TO_CENTER.length];
+        for (int i = 0; i < copy.length; i++) copy[i] = SHIP_RELATIVE_TO_CENTER[i].copy();
         return new SpaceShip(
                 center, 
                 new TwoDVector(0, 0), 
-                new TwoDPolygon(Arrays.copyOf(
-                        SHIP_RELATIVE_TO_CENTER,
-                        SHIP_RELATIVE_TO_CENTER.length
-                ), center)
+                new TwoDPolygon(copy, center)
         );
     }
     
-    public SpaceShipDeath shipDeath() {
-        return new SpaceShipDeath(this);
+    public void shipDeath() {
+        isDead = true;
+        death = new SpaceShipDeath(this);
+        if (engineTurnOn) turnOffEngine();
     }
     
-    class SpaceShipDeath extends MoveableObject {
+    private void reset() {
+        getCenter().transfer(
+                occurrenceVector.getXComponent() - getCenter().getXComponent(), 
+                occurrenceVector.getYComponent() - getCenter().getYComponent()
+        );
+        getVelocityVector().scale(0F);
+        isDead = false;
+        lifeTime = 0;
+        invulnerableFlickering.reset();
+        delayBeforeRevival.reset();
+    }
+    
+    class SpaceShipDeath extends GameObjectImpl {
 
-        private static final float SPLINTERS_VELOCITY = 3F;
+        private static final float SPLINTERS_VELOCITY = 1.5F;
         
         private final Splinter[] shipSplinters;
 
@@ -220,7 +240,7 @@ public class SpaceShip extends AreaGameObject {
                 TwoDVector velocity = TwoDVector.getRandomUnitVector();
                 velocity.scale(SPLINTERS_VELOCITY);
                 shipSplinters[edge] = new Splinter(
-                        copy.getMidpoint(), 
+                        copy.getMidpoint().getAbsolute(ship.getCenter()), 
                         velocity,
                         copy
                 );
@@ -233,13 +253,11 @@ public class SpaceShip extends AreaGameObject {
         }
 
         @Override
-        public void draw(Graphics g) {
-            g.translate(getCenter().getXAsInteger(), getCenter().getYAsInteger());
+        public void draw(GraphicsContext g) {
             for (Splinter s : shipSplinters) s.draw(g);
-            g.translate(0, 0);
         }
         
-        class Splinter extends MoveableObject {
+        class Splinter extends GameObjectImpl {
             
             private final TwoDSegment shipEdge;
 
@@ -249,13 +267,15 @@ public class SpaceShip extends AreaGameObject {
             }
             
             @Override
-            public void draw(Graphics g) {
-                g.drawLine(
-                        shipEdge.getFirstPoint().getXAsInteger(), 
-                        shipEdge.getFirstPoint().getYAsInteger(), 
-                        shipEdge.getSecondPoint().getXAsInteger(),
-                        shipEdge.getSecondPoint().getYAsInteger()
+            public void draw(GraphicsContext g) {
+                g.translate(getCenter().getXComponent(), getCenter().getYComponent());
+                g.strokeLine(
+                        shipEdge.getFirstPoint().getXComponent(), 
+                        shipEdge.getFirstPoint().getYComponent(), 
+                        shipEdge.getSecondPoint().getXComponent(),
+                        shipEdge.getSecondPoint().getYComponent()
                 );
+                g.translate(-getCenter().getXComponent(), -getCenter().getYComponent());
             }
             
         }
