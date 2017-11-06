@@ -248,7 +248,7 @@ public class SpaceShip {
     public void turnOffTheEngine() {                
         engine = false;
         SoundStore.JET_ENGINE.stop();
-        reactiveForce.scale(0, 0);
+        reactiveForce.setLocal(0, 0);
     }
     
     private int bulletsInHolder = BULLETS_IN_HOLDER;
