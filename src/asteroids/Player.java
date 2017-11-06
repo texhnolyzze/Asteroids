@@ -1,14 +1,20 @@
 package asteroids;
 
+/**
+ *
+ * @author Texhnolyze
+ */
 public class Player {
-
-    private static final int LIFES_COUNT = 3;
     
     private int score;
     private int lifesCount;
     
-    public Player() {
-        lifesCount = LIFES_COUNT;
+    public Player(int lifesCount) {
+        this.lifesCount = lifesCount;
+    }
+    
+    public void extraLife() {
+        lifesCount++;
     }
     
     public void increaseScore(int by) {

@@ -1,178 +1,150 @@
 package asteroids.game_objects;
 
-import asteroids.TwoD.TwoDPolygon;
-import asteroids.TwoD.TwoDVector;
-import asteroids.Utils;
-import asteroids.sound.SoundEffect;
+import asteroids.App;
+import asteroids.SoundStore;
+import asteroids.utils.General;
+import static asteroids.utils.General.PI;
+import asteroids.utils.Polygon2;
+import asteroids.utils.TimeStamp;
+import asteroids.utils.Vector2;
 import javafx.scene.canvas.GraphicsContext;
 
-public class UFO extends AreaGameObject implements LimitedLifeTime {
+/**
+ *
+ * @author Texhnolyze
+ */
+public class UFO {
     
-    private static final int SMALL_UFO = 0;
-    private static final int BIG_UFO = 1;
-    
-    private static final int[] SCORE_INCREMENT = {
-        50, 25
+    private static final Vector2[] UFO = {
+        new Vector2(1F, -2F),
+        new Vector2(2F, -1F),
+        new Vector2(4F, 0F),
+        new Vector2(2F, 1F),
+        new Vector2(-2F, 1F),
+        new Vector2(-4F, 0F),
+        new Vector2(-2F, -1F),
+        new Vector2(-1F, -2F)
     };
     
-    private static final SoundEffect[] UFO_SOUND = {
-        SoundEffect.SMALL_UFO_SIREN,
-        SoundEffect.BIG_UFO_SIREN
+    public static final int SMALL_UFO = 0;
+    public static final int BIG_UFO     = 1;
+    
+    private static final float[] UFO_V = { 1.3F, 1.5F };
+    private static final float[] UFO_SCALE = { 2.5F, 3.5F };
+    
+    private static final int TIME_BETWEEN_SHOTS_MS = 1000;
+    
+    private final Polygon2 p;
+    private final Vector2 vel;
+    
+    private final int type;
+    
+    private final int appearsFrom;
+    
+    private UFO(Polygon2 p, Vector2 vel, int type, int appearsFrom) {
+        this.p = p;
+        this.vel = vel;
+        this.type = type;
+        this.appearsFrom = appearsFrom;
+    }
+    
+    public int getType() {
+        return type;
+    }
+    
+    public Polygon2 getPoly() {
+        return p;
+    }
+    
+    private Vector2 destroyedAt;
+    
+    public Vector2 getWhereWasDestroyed() {
+        return destroyedAt;
+    }
+    
+    public boolean isDestroyedBy(Shot s) {
+        if (s.getType() == Shot.SPACE_SHIP_SHOT) {
+            Vector2 v = p.getIntersectionPointWith(s.getLastPath());
+            if (v != null) {
+                destroyedAt = v;
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean isValid() {
+        float x = p.getCenter().getX();
+        if (appearsFrom == APPEARS_FROM_LEFT) 
+            return x + p.getVerticeBy(5).getX() <= App.WIDTH;
+        else 
+            return x + p.getVerticeBy(2).getX() >= 0;
+    }
+    
+    public void update() {
+        Vector2 v = p.getCenter();
+        v.addLocal(vel);
+        v.closureLocalY();
+        boolean b = Math.random() > 0.98D;
+        if (b) vel.setLocalY(-vel.getY());
+    }   
+    
+    public void draw(GraphicsContext gc) {
+        p.draw(gc);
+        gc.translate(p.getCenter().getX(), p.getCenter().getY());
+        Vector2 p1 = p.getVerticeBy(1);
+        Vector2 p6 = p.getVerticeBy(6);
+        gc.strokeLine(p1.getX(), p1.getY(), p6.getX(), p6.getY());
+        Vector2 p2 = p.getVerticeBy(2);
+        Vector2 p5 = p.getVerticeBy(5);
+        gc.strokeLine(p2.getX(), p2.getY(), p5.getX(), p5.getY());
+        gc.translate(-p.getCenter().getX(), -p.getCenter().getY());
+    }
+    
+    private final TimeStamp lastShot = new TimeStamp();
+    
+    public Shot blast(SpaceShip ss) {
+        if (lastShot.passed(TIME_BETWEEN_SHOTS_MS)) {
+            lastShot.reset();
+            Vector2 v = ss.getCenter().sub(p.getCenter()).normalizeLocal();
+            if (type == BIG_UFO) v.rotateLocal(General.getRandomFloatInRange(-PI, PI));
+            return new Shot(p.getCenter().copy(), v, type + 1);
+        }
+        return null;
+    }
+    
+    private static final int APPEARS_FROM_LEFT      = 0;
+    private static final int APPEARS_FROM_RIGHT    = 1;
+    
+    private static final int[] APPEARS_FROM_X = {
+        0, App.WIDTH - 1
     };
     
-    private static final int FLY_OUT_OF_LEFT_BOUND = 0;
-    private static final int FLY_OUT_OF_BOTTOM_BOUND = 3;
-    
-    private static final int SHOTS_INTERVAL = 50;
-    
-    private static final float UFO_VELOCITY = 3F;
-    private static final int VELOCITY_CHANGE_PROBABILITY = 300;
-    private static final int[][] VELOCITY_CHANGES = {
-        {1, -1},
-        {-1, 1},
+    private static final Vector2[] APPEARS_FROM_V = {
+        new Vector2(1F, 0F),
+        new Vector2(-1F, 0F)
     };
     
-    private static final TwoDVector[] UFO_GEOMETRY = {
-        new TwoDVector(2F, -4F),    // 0           7    0
-        new TwoDVector(3F, -2F),    // 1           /▔▔\
-        new TwoDVector(6F, 0F),    // 2      6   /     \      1
-        new TwoDVector(4F, 2F),   // 3     ╱▔▔▔▔▔▔▔▔▔╲   
-        new TwoDVector(-4F, 2F),  // 4  ╱5                   ╲ 2
-        new TwoDVector(-6F, 0F),   // 5  ╲                    ╱ 
-        new TwoDVector(-3F, -2F),   // 6    ╲               ╱   
-        new TwoDVector(-2F, -4F),   // 7     4╲__________3╱     
-    };
-    
-    private static final int[] UFO_GEOMETRY_SCALES = {
-        2, 5 
-    };
-    
-    private final int UFOType;
-    private final int _flewOutFrom;
-    private final int _maxLifeTime;
-
-    private int lifeTime;
-    
-    private UFO(TwoDVector center, TwoDVector velocity, TwoDPolygon poly, 
-            int type, int maxLifeTime, int flewOutFrom) {
-        super(center, velocity, poly);
-        UFOType = type;
-        _maxLifeTime = maxLifeTime;
-        _flewOutFrom = flewOutFrom;
-    }
-
-    @Override
-    public Explosion collisionWith(Bullet bullet) {
-        if (bullet.isPlayerShot()) return super.collisionWith(bullet); 
-        else return null;
-    }
-    
-    @Override
-    public void move(int rightBound, int bottomBound) {
-        super.move(rightBound, bottomBound);
-        if (Utils.conditionWithProbability(VELOCITY_CHANGE_PROBABILITY)) changeVelocity();
-        lifeTime++;
-    }
-    
-    @Override
-    public boolean stillExists() {
-        boolean exists = lifeTime < _maxLifeTime;
-        if (!exists) UFO_SOUND[UFOType].stop();
-        return exists;
-    }
-    
-    public void crush() {
-        lifeTime = _maxLifeTime;
-    }
-
-    public Bullet shoot(SpaceShip enemy) {
-        if (UFOType == SMALL_UFO) {
-            return Bullet.shoot(
-                    getCenter().copy(),
-                    enemy.getCenter().getRelativeTo(getCenter()).getNormalize(),
-                    false
-            );
-        } else return Bullet.shoot(getCenter().copy(), TwoDVector.getRandomUnitVector(), false);
-    }
-    
-    public boolean timeToShot() {
-        return lifeTime % SHOTS_INTERVAL == 0;
-    }
-    
-    public int getScoreIncrement() {
-        return SCORE_INCREMENT[UFOType];
-    }
-    
-    @Override
-    public void draw(GraphicsContext g) {
-        super.draw(g);
-        g.translate(
-                getCenter().getXComponent(), 
-                getCenter().getYComponent()
+    public static UFO getUFO(int type) {
+        int appearsFrom = General.getRandomIntegerInRange(
+                APPEARS_FROM_LEFT, 
+                APPEARS_FROM_RIGHT
         );
-        g.strokeLine(
-                polygon.getVertices()[6].getXComponent(), 
-                polygon.getVertices()[6].getYComponent(), 
-                polygon.getVertices()[1].getXComponent(), 
-                polygon.getVertices()[1].getYComponent()
-        );
-        g.strokeLine(
-                polygon.getVertices()[5].getXComponent(), 
-                polygon.getVertices()[5].getYComponent(), 
-                polygon.getVertices()[2].getXComponent(), 
-                polygon.getVertices()[2].getYComponent()
-        );
-        g.translate(-getCenter().getXComponent(), -getCenter().getYComponent());
-    }
-    
-    private void changeVelocity() {
-        getVelocityVector().xScale(VELOCITY_CHANGES[_flewOutFrom % 2][0]);
-        getVelocityVector().yScale(VELOCITY_CHANGES[_flewOutFrom % 2][1]);
-    }
-    
-    private static UFO createUFO(int type, int flyFrom, int rightBound, int bottomBound) {
-        TwoDVector[] copy = new TwoDVector[UFO_GEOMETRY.length];
-        for (int i = 0; i < copy.length; i++)
-            copy[i] = UFO_GEOMETRY[i].copy();
-        for (TwoDVector v : copy) v.scale(UFO_GEOMETRY_SCALES[type]);
-        TwoDVector[] fromWhere = {
-            new TwoDVector(0, Utils.getRandomIntegerInRange(0, bottomBound)),
-            new TwoDVector(Utils.getRandomIntegerInRange(0, rightBound), 0),
-            new TwoDVector(rightBound, Utils.getRandomIntegerInRange(0, bottomBound)),
-            new TwoDVector(Utils.getRandomIntegerInRange(0, rightBound), bottomBound),
-        };
-        TwoDVector center = fromWhere[flyFrom];
-        float xVelocity = Utils.getRandomFloatInRange(0, 1);
-        float yVelocity = 1 - xVelocity;
-        TwoDVector[] velocityUnitVectors = {
-            new TwoDVector(xVelocity, Utils.randomizeFloatNumberSign(yVelocity)),
-            new TwoDVector(Utils.randomizeFloatNumberSign(xVelocity), yVelocity),
-            new TwoDVector(-xVelocity, Utils.randomizeFloatNumberSign(yVelocity)),
-            new TwoDVector(Utils.randomizeFloatNumberSign(xVelocity), -yVelocity),
-        };
-        TwoDVector velocity = velocityUnitVectors[flyFrom];
-        velocity.scale(UFO_VELOCITY);
-        int[] lifeTimes = {
-            (int) (rightBound / Math.abs(velocity.getXComponent())),
-            (int) (bottomBound / Math.abs(velocity.getYComponent()))
-        };
-        UFO_SOUND[type].playLooply();
-        return new UFO(
-                center, 
-                velocity, 
-                new TwoDPolygon(copy, center), 
-                type, 
-                lifeTimes[flyFrom % 2], 
-                flyFrom
-        );
-    }
-    
-    public static UFO createUFO(int rightBound, int bottomBound) {
-        return createUFO(
-                Utils.getRandomIntegerInRange(SMALL_UFO, BIG_UFO),
-                Utils.getRandomIntegerInRange(FLY_OUT_OF_LEFT_BOUND, FLY_OUT_OF_BOTTOM_BOUND),
-                rightBound,
-                bottomBound);
+        float scale = UFO_SCALE[type];
+        float x = APPEARS_FROM_X[appearsFrom];
+        float y = (float) (Math.random() * App.HEIGHT);
+        Vector2 v = new Vector2(x, y);
+        Vector2[] vertices = new Vector2[UFO.length];
+        for (int i = 0; i < UFO.length; i++) {
+            vertices[i] = UFO[i].copy();
+            vertices[i].scaleLocal(scale, scale);
+        }
+        Polygon2 p = new Polygon2(v, vertices);
+        Vector2 vel = APPEARS_FROM_V[appearsFrom].copy();
+        vel.scaleLocal(UFO_V[type], UFO_V[type]);
+        vel.rotateLocal(General.getRandomFloatInRange(-PI / 4F, PI / 4F));
+        SoundStore.UFO_SIRENS[type].play(true);
+        return new UFO(p, vel, type, appearsFrom);
     }
     
 }

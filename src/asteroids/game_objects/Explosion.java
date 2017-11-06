@@ -1,71 +1,79 @@
+
 package asteroids.game_objects;
 
-import asteroids.TwoD.TwoDVector;
-import asteroids.Utils;
-import asteroids.sound.SoundEffect;
+import asteroids.SoundStore;
+import static asteroids.utils.General.getRandomFloatInRange;
+import static asteroids.utils.General.getRandomIntegerInRange;
+import asteroids.utils.TimeStamp;
+import asteroids.utils.Vector2;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
 
-public class Explosion extends GameObjectImpl implements LimitedLifeTime {
+/**
+ *
+ * @author Texhnolyze
+ */
+public class Explosion {
+    
+    public static final int SMALL       = 0;
+    public static final int MEDIUM   = 1;
+    public static final int BIG           = 2;
+    
+    public static final int EXPLOSION_VALID_TIME_MS = 500;
+    
+    public static final int[][] MIN_MAX_PARTICLES_NUM = {
+        { 5, 10 },
+        { 10, 15 },
+        { 15, 20 }
+    };
+    
+    public static final float MIN_PARTICLE_V = 1F;
+    public static final float MAX_PARTICLE_V = 2F;
 
-    private static final float EXPLOSION_CENTER_VELOCITY = 4F;
+    private final int type;
     
-    private static final int MIN_PARTICLES_COUNT = 10;
-    private static final int MAX_PARTICLES_COUNT = 20;
+    private final Vector2[] particles;
+    private final Vector2[] particlesVelocities;    
     
-    private static final float MIN_PARTICLE_VELOCITY = 2F;
-    private static final float MAX_PARTICLE_VELOCITY = 5F;
+    private final TimeStamp boomTime = new TimeStamp();
     
-    private static final int EXPLOSION_LIFE_TIME = 50;
+    private Explosion(Vector2[] particles, Vector2[] particlesVelocities, int type) {
+        this.type = type;
+        this.particles = particles;
+        this.particlesVelocities = particlesVelocities;
+    }
     
-    private int lifeTime;
-    private final Particle[] particles;
-    
-    private Explosion(TwoDVector center, TwoDVector velocity) {
-        super(center, velocity);
-        particles = new Particle[
-                Utils.getRandomIntegerInRange(MIN_PARTICLES_COUNT, MAX_PARTICLES_COUNT)
-        ];
+    public void update() {
         for (int i = 0; i < particles.length; i++) {
-            TwoDVector particleVelocity = TwoDVector.getRandomUnitVector();
-            particleVelocity.scale(
-                    Utils.getRandomFloatInRange(MIN_PARTICLE_VELOCITY, MAX_PARTICLE_VELOCITY)
-            );
-            particles[i] = new Particle(center.copy(), particleVelocity);
+            particles[i].addLocal(particlesVelocities[i]);
+            particles[i].closureLocal();
         }
     }
-
-    @Override
-    public void move(int rightBound, int bottomBound) {
-        for (Particle p : particles) p.move(rightBound, bottomBound);
-        lifeTime++;
+    
+    public void draw(GraphicsContext gc) {
+        gc.setFill(Color.WHITE);
+        for (Vector2 p : particles) gc.fillRect(p.getX(), p.getY(), 1, 1);
     }
     
-    public static Explosion explose(TwoDVector explosionCenter) {
-        SoundEffect.EXPLOSION.playSound();
-        return new Explosion(explosionCenter, null);
-    }
-
-    @Override
-    public void draw(GraphicsContext g) {
-        for (Particle p : particles) p.draw(g);
+    public boolean isValid() {
+        return boomTime.getMsPassed() < EXPLOSION_VALID_TIME_MS;
     }
     
-    @Override
-    public boolean stillExists() {
-        return lifeTime <= EXPLOSION_LIFE_TIME;
-    }
-    
-    static class Particle extends GameObjectImpl {
-        
-        public Particle(TwoDVector center, TwoDVector velocity) {
-            super(center, velocity);
+    public static Explosion getBoomIn(Vector2 center, int type) {
+        SoundStore.BIG_BANG.play(false);
+        int min = MIN_MAX_PARTICLES_NUM[type][0];
+        int max = MIN_MAX_PARTICLES_NUM[type][1];
+        int pNum = getRandomIntegerInRange(min, max);
+        Vector2[] particles = new Vector2[pNum];
+        Vector2[] particlesVelocities = new Vector2[pNum];
+        for (int i = 0; i < pNum; i++) {
+            particles[i] = center.copy();
+            Vector2 vel = Vector2.getRandomUnitVector();
+            float scale = getRandomFloatInRange(MIN_PARTICLE_V, MAX_PARTICLE_V);
+            vel.scaleLocal(scale, scale);
+            particlesVelocities[i] = vel;
         }
-
-        @Override
-        public void draw(GraphicsContext g) {
-            g.fillRect(getCenter().getXComponent(), getCenter().getYComponent(), 4, 4);
-        }
-        
-    }
+        return new Explosion(particles, particlesVelocities, type);
+    } 
     
 }

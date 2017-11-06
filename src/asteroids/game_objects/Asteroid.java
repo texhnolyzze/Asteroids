@@ -1,134 +1,216 @@
 package asteroids.game_objects;
 
-import asteroids.TwoD.TwoDPolygon;
-import asteroids.TwoD.TwoDVector;
-import asteroids.Utils;
+import asteroids.App;
+import asteroids.utils.General;
+import static asteroids.utils.General.getRandomFloatInRange;
+import asteroids.utils.Polygon2;
+import asteroids.utils.Vector2;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
 
-public class Asteroid extends AreaGameObject implements LimitedLifeTime {
+/**
+ *
+ * @author Texhnolyze
+ */
+public class Asteroid {
 
-    private static final int SMALL_ASTEROID = 0;
-    private static final int MEDIUM_ASTEROID = 1;
-    private static final int BIG_ASTEROID = 2;
+    public static final int SMALL       = 0;
+    public static final int MEDIUM      = 1;
+    public static final int BIG         = 2;
     
-    private static final TwoDVector[][] RANDOM_ASTEROIDS_GEOMETRY = {
-        {
-            new TwoDVector(0, -4),
-            new TwoDVector(7, -7),
-            new TwoDVector(11, -1),
-            new TwoDVector(9, 4),
-            new TwoDVector(5, 6),
-            new TwoDVector(0, 3),
-            new TwoDVector(-4, 5),
-            new TwoDVector(-9, 2),
-            new TwoDVector(-9, -2),
-            new TwoDVector(-7, -6),
-            new TwoDVector(-3, -7),
-            new TwoDVector(-2, -10)
-        },
-        {
-            new TwoDVector(1.4F, -1.4F),
-            new TwoDVector(2.8F, 1.4F),
-            new TwoDVector(8.4F, 1.4F),
-            new TwoDVector(1.4F, 11.2F),
-            new TwoDVector(-2.8F, 7),
-            new TwoDVector(-8.4F, 8.4F),
-            new TwoDVector(-9.8F, 1.4F),
-            new TwoDVector(-5.6F, -2.8F),
-            new TwoDVector(-7, -5.6F)
+    public static final float[][]  MIN_MAX_V = {
+        { 
+            1.5F, 2F 
+        }, {
+            1.0F, 1.5F
+        }, { 
+            0.5F, 1.0F
+        }, {
+            //these values for cases when an asteroid collides 
+            //not with a bullet, but with another polygonal object
+            0.1F, 0.2F
         }
     };
     
-    
-    private static final float[] ASTEROID_GEOMETRY_SCALE = {
-        2F, 3F, 4F 
-    };
-    
-    private static final float[][] ASTEROID_MIN_MAX_VELOCITY = {
-        {4F, 10F},
-        {3.5F, 7.5F},
-        {3F, 6F}
-    };
-    
-    private static final int[] SCORE_INCREMENT = {
-        10, 20, 30
-    };
-    
-    private static final int ASTEROID_SPLITS_COUNT = 2;
-    
-    private boolean crushed;
-    private final int asteroidType;
-    
-    private Asteroid(TwoDVector center, TwoDVector velocity, TwoDPolygon polygon, int type) {
-        super(center, velocity, polygon);
-        asteroidType = type;
-    }
-    
-    public int getScoreIncrement() {
-        return SCORE_INCREMENT[asteroidType];
-    }
-    
-    @Override
-    public boolean stillExists() {
-        return !crushed;
-    }
-    
-    public Asteroid[] split(GameObjectImpl collapsed) {
-        if (asteroidType == SMALL_ASTEROID) return null;
-        Asteroid[] derivatives = new Asteroid[ASTEROID_SPLITS_COUNT];
-        TwoDVector velocity = 
-                collapsed.getVelocityVector().getNormalize();
-        for (int i = 0; i < derivatives.length; i++) {
-            TwoDVector copy = velocity.copy();
-            copy.rotate(
-                    Utils.randomizeFloatNumberSign(
-                            Utils.getRandomFloatInRange(0, (float) (Math.PI / 4)
-                            )
-                    )
-            );
-            derivatives[i] = randomAsteroid(
-                    getCenter().copy(), 
-                    copy, 
-                    asteroidType - 1
-            );
+    public static final float[][] SCALE = {
+        {
+            3F, 5F, 6.5F
+        }, {
+            2F, 3F, 4.5F
+        }, {
+            2.5F, 3F, 4.5F
         }
-        return derivatives;
+    };
+    
+    public static final Vector2[][] ASTEROIDS = {
+        {
+            new Vector2(0, -3),
+            new Vector2(1, -2),
+            new Vector2(2, -3),
+            new Vector2(3, -2),
+            new Vector2(2, -1),
+            new Vector2(3, -1),
+            new Vector2(2, 2),
+            new Vector2(0, 2),
+            new Vector2(-2, 1),
+            new Vector2(-2, -2),
+        }, {
+            new Vector2(0, -2),
+            new Vector2(2, -3),
+            new Vector2(3, -1),
+            new Vector2(1, 0),
+            new Vector2(3, 1),
+            new Vector2(2, 4),
+            new Vector2(-1, 3),
+            new Vector2(-2, 4),
+            new Vector2(-4, 2),
+            new Vector2(-3, 0),
+            new Vector2(-4, -1),
+            new Vector2(-2, -3)
+        }, {
+            new Vector2(1, -3),
+            new Vector2(3, 0),
+            new Vector2(3, 1),
+            new Vector2(1, 3),
+            new Vector2(0, 3),
+            new Vector2(0, 1),
+            new Vector2(-1, 4),
+            new Vector2(-4, 2),
+            new Vector2(-2, 1),
+            new Vector2(-4, 0),
+            new Vector2(-1, -3)
+        }
+    };
+    
+    private final Polygon2 p;
+    private final Vector2 vel;
+    private final int type;
+    
+    private Asteroid(Polygon2 p, Vector2 vel, int type) {
+        this.p = p;
+        this.vel = vel;
+        this.type = type;
+    }
+    
+    public Vector2 getCenter() {
+        return p.getCenter();
+    }
+    
+    public float getMaxDistance2FromCenter() {
+        return p.getMaxDistance2FromCenter();
+    }
+    
+    public void update() {
+        p.translateCenter(vel);
+    }
+    
+    public void draw(GraphicsContext gc) {
+        gc.setStroke(Color.WHITE);
+        p.draw(gc);
+    }
+    
+    public int getType() {
+        return type;
+    }
+    
+    public static final int SPLITS_COUNT = 2;
+    
+    private Shot destroyedBy;
+    private Vector2 destroyedAt;
+    
+    public Vector2 getWhereWasDestroyed() {
+        return destroyedAt;
+    }
+    
+    public boolean isDestroyedBy(Shot s) {
+        Vector2 v = p.getIntersectionPointWith(s.getLastPath());
+        if (v != null) {
+            destroyedBy = s;
+            destroyedAt = v;
+            return true;
+        }
+        return false;
+    }
+    
+    public boolean isCollidedWith(SpaceShip ss) {
+        if (!ss.isInvulnerable()) {
+            Vector2 v = p.getIntersectionPointWith(ss.getPoly());
+            if (v != null) {
+                destroyedAt = v;
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean isCollidedWith(UFO ufo) {
+        Vector2 v = p.getIntersectionPointWith(ufo.getPoly());
+        if (v != null) {
+            destroyedAt = v;
+            return true;
+        }
+        return false;
     }
     
     public Asteroid[] split() {
-        if (asteroidType == SMALL_ASTEROID) return null;
-        Asteroid[] derivatives = new Asteroid[ASTEROID_SPLITS_COUNT];
-        for (int i = 0; i < derivatives.length; i++) {
-            derivatives[i] = randomAsteroid(
-                    getCenter().copy(),
-                    TwoDVector.getRandomUnitVector(),
-                    asteroidType - 1
-            );
+        final Vector2 sVel = destroyedBy == null ? null : destroyedBy.getVelVector();
+        if (type != 0) {
+            Asteroid[] splits = new Asteroid[SPLITS_COUNT];
+            float piDiv8 = (float) (Math.PI / 8);
+            for (int i = 0; i < SPLITS_COUNT; i++) {
+                if (sVel == null) 
+                    splits[i] = getRandomAsteroidIn(
+                            p.getCenter().copy(), Vector2.getRandomUnitVector().scaleLocal(
+                                    MIN_MAX_V[MIN_MAX_V.length - 1][0], 
+                                    MIN_MAX_V[MIN_MAX_V.length - 1][1]
+                            ), type - 1
+                    );
+                else {
+                    float scale = General.getRandomFloatInRange(
+                            MIN_MAX_V[type - 1][0], 
+                            MIN_MAX_V[type - 1][1]
+                    );
+                    Vector2 v = sVel.rotate(General.getRandomFloatInRange(-piDiv8, piDiv8)
+                    ).normalizeLocal().scaleLocal(scale, scale);
+                    splits[i] = getRandomAsteroidIn(p.getCenter().copy(), v, type - 1);
+                }
+            }
+            return splits;
         }
-        return derivatives;
+        return null;
     }
     
-    private static Asteroid randomAsteroid(TwoDVector center, TwoDVector velocityDirection, int type) {
-        int randomGeometry = Utils.getRandomIntegerInRange(0, RANDOM_ASTEROIDS_GEOMETRY.length - 1);
-        TwoDVector[] vertices = new TwoDVector[RANDOM_ASTEROIDS_GEOMETRY[randomGeometry].length];
-        for (int i = 0; i < RANDOM_ASTEROIDS_GEOMETRY[randomGeometry].length; i++) 
-            vertices[i] = RANDOM_ASTEROIDS_GEOMETRY[randomGeometry][i].copy();
-        for (TwoDVector v : vertices) v.scale(ASTEROID_GEOMETRY_SCALE[type]);
-        TwoDPolygon poly = new TwoDPolygon(
-                vertices,
-                center
-        );
-        poly.rotate(Utils.getRandomFloatInRange(0, (float) (2 * Math.PI)));
-        velocityDirection.scale(
-                Utils.getRandomFloatInRange(
-                        ASTEROID_MIN_MAX_VELOCITY[type][0], 
-                        ASTEROID_MIN_MAX_VELOCITY[type][1]
-                )
-        );
-        return new Asteroid(center, velocityDirection, poly, type);
+    public static Asteroid getRandomBigAsteroid() {
+        float x = (float) (Math.random() * App.WIDTH);
+        float y =  (float) (Math.random() * App.HEIGHT);
+        return getRandomAsteroidIn(new Vector2(x, y).closureLocal(), BIG);
     }
     
-    public static Asteroid getRandomBigAsteroid(TwoDVector center) {
-        return randomAsteroid(center, TwoDVector.getRandomUnitVector(), BIG_ASTEROID);
+    public static Asteroid getRandomBigAsteroidAwayFrom(Vector2 v, float r) {
+        if (v == null) return getRandomBigAsteroid();
+        float rSqr = r * r;
+        float x, y;
+        do {
+            x = (float) (Math.random() * App.WIDTH);
+            y =  (float) (Math.random() * App.HEIGHT);
+        } while (v.distance2Between(x, y) < rSqr); //Very stupid, but it works.
+        return getRandomAsteroidIn(new Vector2(x, y).closureLocal(), BIG);
+    }
+    
+    private static Asteroid getRandomAsteroidIn(Vector2 center, int type) {
+        float scale = getRandomFloatInRange(MIN_MAX_V[type][0], MIN_MAX_V[type][1]);
+        Vector2 vel = Vector2.getRandomUnitVector().scaleLocal(scale, scale);
+        return getRandomAsteroidIn(center, vel, type);
+    }
+    
+    private static Asteroid getRandomAsteroidIn(Vector2 center, Vector2 vel, int type) {
+        int gIdx = General.getRandomIntegerInRange(0, 2);
+        Vector2[] verts = new Vector2[ASTEROIDS[gIdx].length];
+        for (int i = 0; i < verts.length; i++) 
+            verts[i] = ASTEROIDS[gIdx][i].copy().scaleLocal(SCALE[gIdx][type], SCALE[gIdx][type]);
+        Polygon2 p = new Polygon2(center, verts);
+        p.rotate(General.getRandomFloatInRange(0, (float) (2 * Math.PI)));
+        return new Asteroid(p, vel, type);
     }
     
 }
