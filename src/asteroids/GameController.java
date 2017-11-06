@@ -229,6 +229,7 @@ public class GameController extends AnimationTimer implements EventHandler<KeyEv
     
     private final TimeStamp t1 = new TimeStamp();
     private final TimeStamp t2 = new TimeStamp();
+    private final TimeStamp t3 = new TimeStamp();
     
     private int stage;
     private int currentAsteroidsNum;
@@ -247,6 +248,8 @@ public class GameController extends AnimationTimer implements EventHandler<KeyEv
                 a.update();
             });
         } else if (state == PLAYING) {
+            if (SoundStore.EXTRA_LIFE.isPlaying() && t3.passed(200)) 
+                SoundStore.EXTRA_LIFE.fadeOut();
             drawHud();
             ss.draw(gc);
             if (ufo != null) ufo.draw(gc);
@@ -286,7 +289,11 @@ public class GameController extends AnimationTimer implements EventHandler<KeyEv
                     if (t2.passed(4000)) {
                         stage++;
                         stagePassed = false;
-                        if (stage % 5 == 0) player.extraLife();
+                        if (stage % 5 == 0) {
+                            t3.reset();
+                            player.extraLife();
+                            SoundStore.EXTRA_LIFE.play(true);
+                        }
                         currentAsteroidsNum = Math.min(currentAsteroidsNum + 1, MAX_ASTEROIDS_COUNT);
                         loadAsteroids(asteroids, currentAsteroidsNum, ss.getCenter(), SAFETY_RADIUS);
                     }

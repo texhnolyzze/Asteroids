@@ -34,5 +34,9 @@ public class Sound {
         if (m.loop() && m.playing()) m.setLoop(false);
     }
     
+    public boolean isPlaying() {
+        return m.playing();
+    }
+    
     
 }
