@@ -22,8 +22,8 @@ public class Sound {
     }
     
     public void play(boolean loop) {
-//        m.rewind();
-//        m.play(loop);
+        m.rewind();
+        m.play(loop);
     }
     
     public void stop() {
