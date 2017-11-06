@@ -308,6 +308,10 @@ public class GameController extends AnimationTimer implements EventHandler<KeyEv
                     scoreResultStr = "SCORE: " + player.getScore();
                     scoreResultX = centerText(scoreResultStr, FONT_4, IN_THE_CENTER);
                     state = GAME_OVER;
+                    if (SoundStore.BIG_UFO.isPlaying()) 
+                        SoundStore.BIG_UFO.fadeOut();
+                    else if (SoundStore.SMALL_UFO.isPlaying()) 
+                        SoundStore.SMALL_UFO.fadeOut();
                 }
             }
             if (ufo == null) {
