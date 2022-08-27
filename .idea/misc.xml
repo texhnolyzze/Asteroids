@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Jira Worklog Plugin State">
+    <option name="lastBranch" value="master" />
+    <option name="timer" value="1661501782979" />
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" project-jdk-name="adopt-openjdk-15" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+  <component name="ru.inovus.jiraworklogplugin.JiraWorklogPluginState">
+    <option name="jiraUrl" value="https://jira.i-novus.ru" />
+    <option name="lastBranch" value="master" />
+    <option name="timer" value="1661634023899" />
+  </component>
+</project>
